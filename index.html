@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock API Interface</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 600px; margin: auto; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; }
+        input, select, button { width: 100%; padding: 8px; margin-top: 5px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f4f4f4; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Stock API Interface</h1>
+        <div class="form-group">
+            <label for="symbol">Stock Symbol</label>
+            <input type="text" id="symbol" placeholder="AAPL">
+        </div>
+        <div class="form-group">
+            <label for="period">Period</label>
+            <input type="text" id="period" placeholder="1y">
+        </div>
+        <div class="form-group">
+            <label for="endpoint">Endpoint</label>
+            <select id="endpoint">
+                <option value="historical">Historical Data</option>
+                <option value="technical">Technical Indicators</option>
+                <option value="sentiment">Sentiment Analysis</option>
+                <option value="risk">Risk Assessment</option>
+                <option value="predict">Stock Price Prediction</option>
+            </select>
+        </div>
+        <button onclick="fetchData()">Fetch Data</button>
+        <div id="result" class="form-group">
+            <h3>Result:</h3>
+            <div id="resultContent"></div>
+        </div>
+    </div>
+
+    <script>
+        async function fetchData() {
+            const symbol = document.getElementById('symbol').value;
+            const period = document.getElementById('period').value;
+            const endpoint = document.getElementById('endpoint').value;
+            let url = `http://127.0.0.1:5000/api/${endpoint}?symbol=${symbol}`;
+            if (endpoint === 'historical' || endpoint === 'technical' || endpoint === 'risk') {
+                url += `&period=${period}`;
+            }
+
+            const options = {
+                method: endpoint === 'sentiment' || endpoint === 'predict' ? 'POST' : 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: endpoint === 'sentiment' || endpoint === 'predict' ? JSON.stringify({ text: symbol, data: [[1, 2, 3]] }) : null,
+            };
+
+            try {
+                const response = await fetch(url, options);
+                const data = await response.json();
+                displayResult(data);
+            } catch (error) {
+                document.getElementById('resultContent').textContent = 'Error fetching data';
+            }
+        }
+
+       function displayResult(data) {
+    const resultContent = document.getElementById('resultContent');
+    resultContent.innerHTML = '';
+
+    // Cek jika data berupa nested object (dict dalam dict)
+    if (typeof data === 'object' && !Array.isArray(data) && data !== null && typeof Object.values(data)[0] === 'object') {
+        const table = document.createElement('table');
+        const thead = document.createElement('thead');
+        const tbody = document.createElement('tbody');
+
+        // Ambil kolom dari kunci nested pertama
+        const columns = Object.keys(Object.values(data)[0]);
+        const headerRow = document.createElement('tr');
+        headerRow.innerHTML = '<th>Date</th>'; // Kolom tanggal
+        columns.forEach(col => {
+            const th = document.createElement('th');
+            th.textContent = col;
+            headerRow.appendChild(th);
+        });
+        thead.appendChild(headerRow);
+        // Iterasi setiap baris berdasarkan tanggal
+            Object.entries(data).forEach(([date, values]) => {
+        console.log("Original date key:", date);  // debug log
+
+        const tr = document.createElement('tr');
+        const dateCell = document.createElement('td');
+        
+        const timestamp = Number(date);
+        let formattedDate = date;
+
+        if (!isNaN(timestamp)) {
+            const d = new Date(timestamp);
+            if (!isNaN(d.getTime())) {
+                formattedDate = d.toISOString().split('T')[0];
+            }
+        }
+
+        dateCell.textContent = formattedDate;
+        tr.appendChild(dateCell);
+
+        columns.forEach(col => {
+            const td = document.createElement('td');
+            td.textContent = values[col]?.toFixed?.(2) ?? values[col];
+            tr.appendChild(td);
+        });
+
+        tbody.appendChild(tr);
+    });
+        table.appendChild(thead);
+        table.appendChild(tbody);
+        resultContent.appendChild(table);
+    } else {
+        // Default fallback (untuk JSON sederhana / prediksi)
+        resultContent.textContent = JSON.stringify(data, null, 2);
+    }
+}
+
+    </script>
+</body>
+</html>
